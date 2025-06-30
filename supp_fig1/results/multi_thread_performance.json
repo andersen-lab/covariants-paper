@@ -1,0 +1,76 @@
+{
+  "results": [
+    {
+      "command": "freyja covariants ../bygul/jn.1.1.trimmed.bam --annot ../NC_045512_Hu-1.gff --output ../results/freyja_covariants.tsv --min_quality 0 --min_count 0 --threads 4",
+      "mean": 18.51298800688,
+      "stddev": 1.8324214125801697,
+      "median": 18.10421846468,
+      "user": 52.06712822000001,
+      "system": 2.8365060399999997,
+      "min": 15.93023771568,
+      "max": 20.74658646568,
+      "times": [
+        15.93023771568,
+        18.08040792268,
+        18.10421846468,
+        20.74658646568,
+        19.703489465679997
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "SAM_refiner -S ../bygul/jn.1.1.trimmed.sam -r ../NC_045512_Hu-1.fasta --mp 4 --min_count 1 --min_samp_abund 0.0 --min_col_abund 0.0 --ntabund 0.0 --ntcover 0 --max_dist 300 --max_covar 300 --read 1",
+      "mean": 5.89844454828,
+      "stddev": 0.39263825416487436,
+      "median": 5.81145113168,
+      "user": 5.45918882,
+      "system": 0.29415864,
+      "min": 5.51598388168,
+      "max": 6.55984763168,
+      "times": [
+        5.86137221468,
+        6.55984763168,
+        5.51598388168,
+        5.743567881680001,
+        5.81145113168
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "covar -i ../bygul/jn.1.1.trimmed.bam -r ../NC_045512_Hu-1.fasta -a ../NC_045512_Hu-1.gff -o ../results/covar.tsv --threads 4",
+      "mean": 0.44802561508000005,
+      "stddev": 0.09099381848131581,
+      "median": 0.42248192268,
+      "user": 1.02552442,
+      "system": 0.06499363999999999,
+      "min": 0.37290229868,
+      "max": 0.6061917986800001,
+      "times": [
+        0.37290229868,
+        0.42804779868000004,
+        0.6061917986800001,
+        0.42248192268,
+        0.41050425668
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

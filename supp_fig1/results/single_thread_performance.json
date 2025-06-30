@@ -1,0 +1,76 @@
+{
+  "results": [
+    {
+      "command": "freyja covariants ../bygul/jn.1.1.trimmed.bam --annot ../NC_045512_Hu-1.gff --output freyja_covariants.tsv --min_quality 0 --min_count 0 --threads 1",
+      "mean": 121.3952915611,
+      "stddev": 1.8152233458978282,
+      "median": 121.7389164779,
+      "user": 118.6721722,
+      "system": 0.79946972,
+      "min": 119.0686044779,
+      "max": 123.7277254359,
+      "times": [
+        119.0686044779,
+        122.2567799779,
+        120.1844314359,
+        121.7389164779,
+        123.7277254359
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "SAM_refiner -S ../bygul/jn.1.1.trimmed.sam -r ../NC_045512_Hu-1.fasta --mp 1 --min_count 1 --min_samp_abund 0.0 --min_col_abund 0.0 --ntabund 0.0 --ntcover 0 --max_dist 300 --max_covar 300 --read 1",
+      "mean": 5.2905247527000006,
+      "stddev": 0.2813827142039867,
+      "median": 5.2146321859,
+      "user": 5.0680996,
+      "system": 0.14029732,
+      "min": 5.0353654359,
+      "max": 5.7317970609,
+      "times": [
+        5.0853421449,
+        5.7317970609,
+        5.0353654359,
+        5.2146321859,
+        5.3854869359
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "covar -i ../bygul/jn.1.1.trimmed.bam -r ../NC_045512_Hu-1.fasta -a ../NC_045512_Hu-1.gff -o covar.tsv --threads 1",
+      "mean": 0.9297156193000001,
+      "stddev": 0.03938236256132021,
+      "median": 0.9261841439,
+      "user": 0.8902045999999999,
+      "system": 0.030776919999999996,
+      "min": 0.8842808949000001,
+      "max": 0.9917072689,
+      "times": [
+        0.8842808949000001,
+        0.9331853949,
+        0.9261841439,
+        0.9132203939,
+        0.9917072689
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}
