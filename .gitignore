@@ -5,3 +5,8 @@ EPI_ISL*
 
 # Mac OS
 .DS_Store
+
+# Raw data
+data/raw_bam/
+data/bam/
+data/covar_out/
