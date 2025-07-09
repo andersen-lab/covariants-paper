@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "command": "python crykey_wastewater.py -i ../bygul/jn.1.1_1000_merged.trimmed.metadata.tsv -r ../NC_045512_Hu-1.fasta -d ../crykey/crykey_dbs -o ../results/",
+      "mean": 4.578787644339999,
+      "stddev": 0.0986988972409723,
+      "median": 4.52717938174,
+      "user": 24.334447259999997,
+      "system": 0.89342134,
+      "min": 4.50484258274,
+      "max": 4.73541962174,
+      "times": [
+        4.61718386574,
+        4.73541962174,
+        4.50484258274,
+        4.50931276974,
+        4.52717938174
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "command": "SAM_Refiner -S ../bygul/jn.1.1_100000_merged.trimmed.sam  -r ../NC_045512_Hu-1.fasta --min_count 1 --min_samp_abund 0.0 --ntcover 1 --wgs 1 --AAreport 1 --mp 1",
+      "mean": 82.20296803538,
+      "stddev": 0.8794038657308472,
+      "median": 81.88286656938,
+      "user": 81.27803586,
+      "system": 0.61548698,
+      "min": 81.44501863438,
+      "max": 83.47251034138,
+      "times": [
+        82.73427105438,
+        83.47251034138,
+        81.88286656938,
+        81.48017357738,
+        81.44501863438
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

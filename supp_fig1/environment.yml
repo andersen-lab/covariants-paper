@@ -1,0 +1,16 @@
+name: benchmark
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - bygul=1.0.5 
+  - samrefiner=1.4.2
+  - freyja=1.5.3
+  - vsearch
+  - minimap2
+  - samtools
+  - lofreq
+  - pyvcf
+  # add covar here when we release it
+  - pip:
+      - regex

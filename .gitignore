@@ -3,10 +3,17 @@ lib/
 # GISAID data
 EPI_ISL*
 
-# Mac OS
+# MacOS
 .DS_Store
 
 # Raw data
 data/raw_bam/
 data/bam/
 data/covar_out/
+
+# Supp. fig 1
+jn.1.1_*
+
+# Figure 3
+fig3/evoplots/
+fig

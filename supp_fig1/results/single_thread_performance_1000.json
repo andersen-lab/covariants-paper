@@ -1,0 +1,52 @@
+{
+  "results": [
+    {
+      "command": "SAM_Refiner -S ../bygul/jn.1.1_1000_merged.trimmed.sam  -r ../NC_045512_Hu-1.fasta --min_count 1 --min_samp_abund 0.0 --ntcover 1 --wgs 1 --AAreport 1 --mp 1",
+      "mean": 1.115625837,
+      "stddev": 0.009484357508579773,
+      "median": 1.1132139150000002,
+      "user": 1.06909034,
+      "system": 0.04377369999999999,
+      "min": 1.10663459,
+      "max": 1.125786315,
+      "times": [
+        1.1132139150000002,
+        1.125786315,
+        1.10663459,
+        1.125443508,
+        1.1070508570000002
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "covar -i ../bygul/jn.1.1_1000_merged.trimmed.bam -r ../NC_045512_Hu-1.fasta -a ../NC_045512_Hu-1.gff -o ../results/jn.1.1_coVar.tsv --min_count 1 --min_quality 0 --threads 1",
+      "mean": 0.15475058120000001,
+      "stddev": 0.003472783999966487,
+      "median": 0.155512756,
+      "user": 1.21960914,
+      "system": 0.3111243,
+      "min": 0.148785547,
+      "max": 0.157866591,
+      "times": [
+        0.157866591,
+        0.156103347,
+        0.155512756,
+        0.148785547,
+        0.155484665
+      ],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}
