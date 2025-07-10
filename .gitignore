@@ -12,7 +12,7 @@ data/bam/
 data/covar_out/
 
 # Supp. fig 1
-jn.1.1_*
+supp_fig1/bygul/jn.1*
 
 # Figure 3
 fig3/evoplots/
