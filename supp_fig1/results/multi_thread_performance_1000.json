@@ -1,20 +1,20 @@
 {
   "results": [
     {
-      "command": "SAM_Refiner -S ../bygul/jn.1.1_1000_merged.trimmed.sam  -r ../NC_045512_Hu-1.fasta --min_count 1 --min_samp_abund 0.0 --ntcover 1 --wgs 1 --AAreport 0 --mp 4",
-      "mean": 1.6718036056400003,
-      "stddev": 0.030939603941123193,
-      "median": 1.68867749144,
-      "user": 1.6214037400000003,
-      "system": 0.05381718,
-      "min": 1.62930168044,
-      "max": 1.69741137744,
+      "command": "SAM_Refiner -S ../bygul/jn.1.1_1000_merged.trimmed.sam  -r ../NC_045512_Hu-1.fasta --min_count 1 --min_samp_abund 0.0 --ntcover 1 --wgs 1 --AAreport 1 --mp 8",
+      "mean": 1.1368577323,
+      "stddev": 0.009771569039962055,
+      "median": 1.1331161969,
+      "user": 1.0828953,
+      "system": 0.07144609999999998,
+      "min": 1.1248802519,
+      "max": 1.1473396029,
       "times": [
-        1.62930168044,
-        1.68867749144,
-        1.69507461344,
-        1.6485528654400001,
-        1.69741137744
+        1.1465788279,
+        1.1331161969,
+        1.1248802519,
+        1.1323737819,
+        1.1473396029
       ],
       "exit_codes": [
         0,
@@ -25,20 +25,20 @@
       ]
     },
     {
-      "command": "covar -i ../bygul/jn.1.1_1000_merged.trimmed.bam -r ../NC_045512_Hu-1.fasta -a ../NC_045512_Hu-1.gff -o ../results/jn.1.1_coVar.tsv --min_count 1 --min_quality 0 --threads 4",
-      "mean": 0.10093926364000001,
-      "stddev": 0.0030667300599044748,
-      "median": 0.09981195444,
-      "user": 1.10277834,
-      "system": 0.32918598,
-      "min": 0.09757215144,
-      "max": 0.10493812144,
+      "command": "covar -i ../bygul/jn.1.1_1000_merged.trimmed.bam -r ../NC_045512_Hu-1.fasta -a ../NC_045512_Hu-1.gff --min_depth 1 --min_quality 0 --threads 8",
+      "mean": 0.0972567759,
+      "stddev": 0.004199327346105446,
+      "median": 0.0965185529,
+      "user": 1.0929124999999997,
+      "system": 0.3102023,
+      "min": 0.0925759839,
+      "max": 0.1038811609,
       "times": [
-        0.09907785044,
-        0.09981195444,
-        0.10329624044,
-        0.09757215144,
-        0.10493812144
+        0.0965185529,
+        0.0953361989,
+        0.0979719829,
+        0.1038811609,
+        0.0925759839
       ],
       "exit_codes": [
         0,
