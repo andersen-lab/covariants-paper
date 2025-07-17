@@ -21,6 +21,8 @@ def main():
     parser.add_argument('--min_muts', type=int, default=2, help='Minimum number of mutations in a cluster to consider.')
     parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
     parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
+    parser.add_argument('--min_freq', type=float, default=0.01, help='Minimum frequency of mutations in the cluster to be considered.')
+    parser.add_argument('--min_depth', type=int, default=10, help='Minimum depth for a mutation cluster to be considered.')
 
     args = parser.parse_args()
 
@@ -28,16 +30,18 @@ def main():
 
     df['cluster'] = df['query'].apply(parse_query_list)
     df['cluster'] = df['cluster'].apply(lambda x: tuple(sorted(x,key=get_aa_site)))
+    df['collection_date'] = pd.to_datetime(df['collection_date'])
 
     df['num_muts'] = df['cluster'].apply(lambda x:len(x))
     df = df[df['num_muts']>= args.min_muts]
 
     df.drop_duplicates(subset=['cluster', 'collection_date', 'location'],keep='first',inplace=True)
 
-    df = df[df['frequency'] > 0.001]
+    df = df[df['count'] >= args.min_depth]
+    df = df[df['frequency'] > args.min_freq]
 
-    df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3 )
-    df['coverage_end'] = df['coverage_end'].apply(lambda x: (x - 21563) // 3 )
+    df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3)
+    df['coverage_end'] = df['coverage_end'].apply(lambda x: (x - 21563) // 3)
 
     # aggregate metadata for each unique cluster
     df_aggregate = df.groupby('cluster').agg(
@@ -56,8 +60,8 @@ def main():
     df_aggregate = df_aggregate[df_aggregate['total_observations'] >= args.min_observations]
 
     df_aggregate = df_aggregate[df_aggregate['num_clinical_detections'] <= args.max_clinical_detections]
+    
     df_aggregate['cluster'] = df_aggregate.index
-
 
     test_clusters = []
     for row in df_aggregate.iterrows():
@@ -109,7 +113,6 @@ def main():
                 parent_list.append(None)
                 new_muts_list.append(c)
 
-
         # for each, define parent, unless smallest cluster. 
         edge_labels = {}
         G = nx.DiGraph()
@@ -127,14 +130,13 @@ def main():
         except:
             pass
 
-        fig,ax = plt.subplots()#figsize=(5,1.5))
+        fig, ax = plt.subplots()
 
         pos = graphviz_layout(
             G,
             prog='dot',
             args="-Grankdir='LR' -Goverlap=false",
             root=0
-        
         )
 
         nx.draw_networkx_nodes(
@@ -160,8 +162,6 @@ def main():
             labels = {key:labels[key] for key in pos.keys()}
         nx.draw_networkx_labels(G, pos = pos, labels = labels, font_color="white", font_size=6)#,verticalalignment='bottom')
         nx.draw_networkx_edge_labels(G, pos = pos, edge_labels=edge_labels, font_color='black',font_size=5)
-        minX = 500
-        maxX = 900
 
         ymin, ymax = ax.get_ylim()
         y_length = ymax - ymin
@@ -169,16 +169,12 @@ def main():
         xmin, xmax = ax.get_xlim()
         x_length = xmax - xmin
 
-        start = df_superset['cluster'].iloc[-1]
-        minXpos = np.min([x[0] for x in pos.values()])
-
         for pk in pos.keys():
             if G.in_degree(pk)==0:
                 ax.text(pos[pk][0]-x_length*0.06,pos[pk][1],'\n'.join(pk),fontsize=5,verticalalignment='center',horizontalalignment='right')
             if G.out_degree(pk)==0:
                 ax.text(pos[pk][0]+x_length*0.06,pos[pk][1],'\n'.join(pk),fontsize=5,verticalalignment='center',horizontalalignment='left')
         # add number of clinical detections below ww detection count
-        clin_detects = {c:counts for c,counts in zip(df_superset['cluster'],df_superset['num_clinical_detections'])}
         for pk in pos.keys():
             ax.text(pos[pk][0],pos[pk][1]-y_length*0.03,int(df_region.loc[[pk],'num_clinical_detections']),
                     fontsize=5,verticalalignment='center',horizontalalignment='center',color='red')
@@ -203,7 +199,7 @@ def main():
                         fontsize=4,verticalalignment='center',horizontalalignment='center',color='black')
 
         plt.gca().set_frame_on(False)
-        plt.savefig(f'../{args.output}/ww_evo_seq{count}.pdf',transparent=True)
+        plt.savefig(f'{args.output}/ww_evo_seq{count}.pdf',transparent=True)
         count += 1
         plt.close('all')
 
@@ -224,7 +220,6 @@ def get_aa_site(mut):
     else: 
         return int(mut.split(':')[1][1:-1]
 )
-
 
 if __name__ == "__main__":
     main()

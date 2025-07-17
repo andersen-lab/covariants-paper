@@ -1,3 +1,4 @@
+import argparse
 import pandas as pd
 import numpy as np
 import networkx as nx
@@ -12,114 +13,109 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 
-def get_duplicate_indices(indices):
-    duplicates = {}
-    for i, x in enumerate(indices):
-        if x in duplicates:
-            duplicates[x].append(i)
-        else:
-            duplicates[x] = [i]
-    duplicates = [v for k,v in zip(duplicates.keys(),duplicates.values()) if len(v)>1]
-    duplicates_flat = [d for d1 in duplicates for d in d1]
-    return duplicates_flat
-
-def parse_query_list(query_list):
-    query_list = query_list.strip('[]').split(', ')
-    query_list = [x.strip().strip("'").strip('"') for x in query_list]
-    return query_list
-
-
-def get_aa_site(mut):
-    if 'DEL' in mut:
-        return int(mut.split('DEL')[1].split('/')[0])
-    else: 
-        return int(mut.split(':')[1][1:-1]
-)
-
 def main():
-    df = pd.read_csv('../../data/cryptic_variants_metadata.tsv',sep='\t')
+    parser = argparse.ArgumentParser(description='Plot stepwise evolution of cryptic mutation clusters.')
 
-    df['Covariants'] = df['query'].apply(parse_query_list)
-    df['Covariants'] = df['Covariants'].apply(lambda x: tuple(sorted(x,key=get_aa_site)))
+    parser.add_argument('--input', type=str, help='Path to the input file (tsv) containing cryptic variants.')
+    parser.add_argument('--output', type=str, default='descent_plots', help='Directory to save the output plots.')
+    parser.add_argument('--min_muts', type=int, default=2, help='Minimum number of mutations in a cluster to consider.')
+    parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
+    parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
+    parser.add_argument('--min_freq', type=float, default=0.01, help='Minimum frequency of mutations in the cluster to be considered.')
+    parser.add_argument('--min_depth', type=int, default=10, help='Minimum depth for a mutation cluster to be considered.')
+
+    args = parser.parse_args()
+
+    df = pd.read_csv(args.input ,sep='\t')
+
+    df['cluster'] = df['query'].apply(parse_query_list)
+    df['cluster'] = df['cluster'].apply(lambda x: tuple(sorted(x,key=get_aa_site)))
     df['collection_date'] = pd.to_datetime(df['collection_date'])
 
-    df['num_muts'] = df['Covariants'].apply(lambda x:len(x))
-    df = df[df['num_muts']>=2]
-    df = df.sort_values(by='num_muts',ascending=False).reset_index(drop=True)
+    df['num_muts'] = df['cluster'].apply(lambda x:len(x))
+    df = df[df['num_muts'] >= args.min_muts]
 
-    df = df[df['count']>=10]
+    df.drop_duplicates(subset=['cluster', 'collection_date', 'location'],keep='first',inplace=True)
 
-    df.drop_duplicates(subset=['Covariants', 'collection_date', 'location'],keep='first',inplace=True)
+    df = df[df['count'] >= args.min_depth]
+    df = df[df['frequency'] >= args.min_freq]
 
-    # convert coverage start and end to amino acid positions
-    df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3 )
-    df['coverage_end'] = df['coverage_end'].apply(lambda x: (x - 21563) // 3 )
-
+    df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3)
+    df['coverage_end'] = df['coverage_end'].apply(lambda x: (x - 21563) // 3)
 
     # aggregate metadata for each unique cluster
-    df = df.groupby('Covariants').agg({'count':tuple,'location':tuple,'collection_date':tuple,'coverage_start':tuple,'coverage_end':tuple,'num_clinical_detections':'mean'})
-    
-    df['Covariants'] = df.index
-    df['Total_Obs']= df['count'].apply(lambda x: len(x))
-    df = df[df['Total_Obs']>=2]
+    df_aggregate = df.groupby('cluster').agg(
+        {
+            'count':tuple,
+            'location':tuple,
+            'collection_date':tuple,
+            'coverage_start':tuple,
+            'coverage_end':tuple,
+            'num_clinical_detections':'mean',
+            'num_muts':'min'
+        }
+    ).sort_values(by='num_muts',ascending=False)
 
-    df.to_csv('df_filtered.tsv',sep='\t',index=False)
+    df_aggregate['total_observations']= df_aggregate['count'].apply(lambda x: len(x))
+    df_aggregate = df_aggregate[df_aggregate['total_observations'] >= args.min_observations]
 
-    ## for a known mutation cluster, see what evolves from it. 
-    clusters = [
-                #('S:G142D', 'S:DEL144/144', 'S:H146Q'),
-                ("S:D614G", "S:P621S", "S:H655Y")
-                #("S:H655Y", "S:N679K")
-                # ("S:W633R"),
-                # ("S:N679K", "S:S698P"),
-                # ("S:M697V", "S:N679K", "S:P681H"),
-                # ("S:H655Y","S:T678A","S:N679K","S:P681R"),
-                # ('S:K356T', 'S:S371F', 'S:S373P', 'S:S375F',"S:D405N","S:R408S"),
-                # ('S:N969K','S:Q954H'),
-                # ("S:S371F","S:S373P","S:S375F"),
-                # ("S:K356T","S:S371F","S:S373P","S:S375F","S:T376A","S:L390F","S:R403K"),
-                # ("S:K417N","S:N440K","S:V445P"),
-                # ("S:H655Y","S:N679K","S:P681H","S:A653T"),
-                # ("S:S477N","S:T478K","S:DEL483/483","S:E484K","S:F486P","S:Q498R","S:N501Y")
+    df_aggregate = df_aggregate[df_aggregate['num_clinical_detections'] <= args.max_clinical_detections]
+
+    df_aggregate['cluster'] = df_aggregate.index
+
+    # for a known mutation cluster, see what evolves from it. 
+    test_clusters = [
+                ("S:S371F","S:S373P","S:S375F", "S:K356T", "S:T376A"),
+                ('S:G142D', 'S:DEL144/144'),
+                ("S:D614G", "S:P621S", "S:H655Y"),
+                ("S:N679K", "S:S698P"),
+                ("S:M697V", "S:N679K", "S:P681H"),
+                ("S:H655Y","S:T678A","S:N679K","S:P681R"),
+                ('S:K356T', 'S:S371F', 'S:S373P', 'S:S375F',"S:D405N","S:R408S"),
+                ('S:N969K','S:Q954H'),
+                ("S:K356T","S:S371F","S:S373P","S:S375F","S:T376A","S:L390F","S:R403K"),
+                ("S:K417N","S:N440K","S:V445P"),
+                ("S:H655Y","S:N679K","S:P681H","S:A653T"),
+                ("S:S477N","S:T478K","S:DEL483/483","S:E484K","S:F486P","S:Q498R","S:N501Y")
             ]
     
-    for cluster0 in clusters:
-        df_superset = df[df['Covariants'].apply(lambda x: set(cluster0).issubset(set(x)) or set(cluster0)==set(x))]
+    for test_clust in test_clusters:
+        df_superset = df_aggregate[df_aggregate['cluster'].apply(lambda x: set(test_clust).issubset(set(x)) or set(test_clust)==set(x))]
 
+        df_superset['num_descendants'] = [df_superset[df_superset['cluster'].apply(lambda x: set(c0).issubset(set(x)))].shape[0] for c0 in df_superset.index] 
+        df_superset = df_superset.sort_values(by='total_observations',ascending=False)
 
-        df_superset['num_descendants'] = [df_superset[df_superset['Covariants'].apply(lambda x: set(c0).issubset(set(x)))].shape[0] for c0 in df_superset.index] 
-        df_superset = df_superset.sort_values(by='Total_Obs',ascending=False)
-
-        if df_superset.shape[0]>10:
+        # limit to 10 for simplicity
+        if df_superset.shape[0] > 10:
             df_superset = df_superset.iloc[0:10]
 
+        print('test cluster:', test_clust)
+        print('df_superset:', df_superset)
+
         #force the seed cluster to be in the matrix
-        if df_superset[df['Covariants'].apply(lambda x: set(cluster0)==set(x))].shape[0]==0:
+        if df_superset[df_aggregate['cluster'].apply(lambda x: set(test_clust)==set(x))].shape[0]==0:
             df_superset = df_superset.reset_index(drop=True)
-            newRow = pd.DataFrame({c0:None for c0 in df.columns},index=[cluster0])
-            newRow['Covariants'] =[cluster0]
-            df_superset = pd.concat((df_superset,newRow),axis=0,ignore_index=True).set_index('Covariants')
-            df_superset['Covariants'] = df_superset.index
+            newRow = pd.DataFrame({c0:None for c0 in df_aggregate.columns},index=[test_clust])
+            newRow['cluster'] =[test_clust]
+            df_superset = pd.concat((df_superset,newRow),axis=0,ignore_index=True).set_index('cluster')
+            df_superset['cluster'] = df_superset.index
 
-
-        # df_superset = df_superset[df_superset['num_clinical_detections']<=100 | (df_superset['Covariants']==cluster0)]
         parent_list = []
         new_muts_list = []
-        for j,c in enumerate(df_superset['Covariants']):
+        for j,c in enumerate(df_superset['cluster']):
             # get subsets
-            subsets = df_superset[df_superset['Covariants'].apply(lambda x: set(x).issubset(c) & (x!=c))]
+            subsets = df_superset[df_superset['cluster'].apply(lambda x: set(x).issubset(c) & (x!=c))]
             if subsets.shape[0]>0:
-                subsets['difference'] = subsets['Covariants'].apply(lambda x: len(set(c)-set(x)))
+                subsets['difference'] = subsets['cluster'].apply(lambda x: len(set(c)-set(x)))
                 minDiff = subsets['difference'].min()
                 subsets = subsets[subsets['difference']==minDiff]
                 
                 if subsets.shape[0] ==1:
-                    parent_list.append([subsets['Covariants'].iloc[0]])
-                    new_muts_list.append([tuple(set(c)-set(subsets['Covariants'].iloc[0]))])
+                    parent_list.append([subsets['cluster'].iloc[0]])
+                    new_muts_list.append([tuple(set(c)-set(subsets['cluster'].iloc[0]))])
                 else:
-                    parent_list.append(list(subsets['Covariants']))
-                    new_muts_list.append([tuple(set(c)- set(t0)) for t0 in subsets['Covariants']])
-                # print(c,subsets)
+                    parent_list.append(list(subsets['cluster']))
+                    new_muts_list.append([tuple(set(c)- set(t0)) for t0 in subsets['cluster']])
             else:
                 parent_list.append(None)
                 new_muts_list.append(c)
@@ -129,7 +125,7 @@ def main():
         G = nx.DiGraph()
         # assemble graph
         # make edges to first level
-        for j,c in enumerate(df_superset['Covariants']):
+        for j,c in enumerate(df_superset['cluster']):
             if parent_list[j] is not None:
                 for l in range(0,len(parent_list[j])):
                     G.add_edge(parent_list[j][l],c,weight=1)
@@ -138,12 +134,20 @@ def main():
 
         l0 = len(nx.dag_longest_path(G))-1
         if l0<=1:
-            print(f'No detected stepwise evolution for {cluster0}')
+            print(f'No detected stepwise evolution for {test_clust}')
             continue
         fig,ax = plt.subplots(figsize=(3*l0,5))
-        # pos = nx.spring_layout(G, seed=1)
         pos=graphviz_layout(G, prog='dot',args="-Grankdir='LR' -Goverlap=false",root=0)
-        nx.draw_networkx_nodes(G, pos, node_color="cornflowerblue",alpha=0.9,margins=0.1,node_size=80)
+
+        nx.draw_networkx_nodes(
+            G,
+            pos,
+            node_color="cornflowerblue",
+            alpha=0.9,
+            margins=0.1,
+            node_size=80
+        )
+
         nx.draw_networkx_edges(
             G,
             pos,
@@ -152,24 +156,20 @@ def main():
             arrows=True,
             edge_color="grey",
         )
-        labels = {c:o for c,o in zip(df_superset['Covariants'],list(df_superset['Total_Obs']))}
+
+        labels = {c:o for c,o in zip(df_superset['cluster'],list(df_superset['total_observations']))}
         if len(labels)> len(pos):
             labels = {key:labels[key] for key in pos.keys()}
 
-        labels.pop(cluster0)
+        labels.pop(test_clust)
         nx.draw_networkx_labels(G, pos = pos, labels = labels, font_color="white", font_size=6)#,verticalalignment='bottom')
         nx.draw_networkx_edge_labels(G, pos = pos, edge_labels=edge_labels, font_color='black',font_size=5)
-        minX = 500
-        maxX = 900
 
         ymin, ymax = ax.get_ylim()
         y_length = ymax - ymin
 
         xmin, xmax = ax.get_xlim()
         x_length = xmax - xmin
-
-        start = df_superset['Covariants'].iloc[-1]
-        minXpos = np.min([x[0] for x in pos.values()])
 
         for pk in pos.keys():
             if G.in_degree(pk)==0:
@@ -187,10 +187,10 @@ def main():
                     ax.scatter(pos[pk][0]+x_length*0.035,pos[pk][1]+ y_length*0.015*(1-j),marker='s',s=5,color='darkblue',linewidth=0.5)
                 else:
                     ax.scatter(pos[pk][0]+x_length*0.035,pos[pk][1]+ y_length*0.015*(1-j),marker='s',s=5,edgecolors='darkblue',facecolors='none',linewidth=0.5)
+        
         # add number of clinical detections below ww detection count
-        clin_detects = {c:counts for c,counts in zip(df_superset['Covariants'],df_superset['num_clinical_detections'])}
         for pk in pos.keys():
-            ax.text(pos[pk][0],pos[pk][1]-y_length*0.03,str(int(df_superset.loc[[pk],'num_clinical_detections'])) if pk!=cluster0 else "",
+            ax.text(pos[pk][0],pos[pk][1]-y_length*0.03,str(int(df_superset.loc[[pk],'num_clinical_detections'])) if pk!=test_clust else "",
                     fontsize=5,verticalalignment='center',horizontalalignment='center',color='red')
             
         for pk in pos.keys():
@@ -208,10 +208,24 @@ def main():
                         fontsize=4,verticalalignment='center',horizontalalignment='center',color='black')
                 
         plt.gca().set_frame_on(False)
-        fn0 = ','.join(cluster0).replace('/','_')
+        fn0 = ','.join(test_clust).replace('/','_')
         fig.tight_layout()
-        plt.savefig(f'../descent_plots/ww_evo_seq{fn0}.pdf',transparent=True)
+        plt.savefig(f'{args.output}/ww_evo_seq{fn0}.pdf',transparent=True)
         plt.close('all')
+
+def parse_query_list(query_list):
+    query_list = query_list.strip('[]').split(', ')
+    query_list = [x.strip().strip("'").strip('"') for x in query_list]
+    return query_list
+
+
+def get_aa_site(mut):
+    if 'DEL' in mut:
+        return int(mut.split('DEL')[1].split('/')[0])
+    else: 
+        return int(mut.split(':')[1][1:-1]
+)
+
 
 if __name__ == "__main__":
     main()
