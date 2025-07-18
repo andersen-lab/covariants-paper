@@ -64,7 +64,7 @@ def parse_aa_muts(muts):
 
 
 def parse_covariants(covariants_dir):
-    """Parse freyja covariants output files, aggregate into one dataframe"""
+    """Parse covar output files, aggregate into one dataframe"""
 
     agg_covariants = pd.DataFrame()
     for file in os.listdir(covariants_dir):
@@ -75,9 +75,27 @@ def parse_covariants(covariants_dir):
         df["sample"] = file
         agg_covariants = pd.concat([agg_covariants, df])
 
-    agg_covariants.to_csv("agg_covariants.tsv", sep="\t", index=False)
-
     return agg_covariants
+
+def add_metadata(aggregate_covariants, metadata_file="../search_metadata.csv"):
+    """Add metadata to aggregate covariants dataframe"""
+
+    metadata = pd.read_csv(metadata_file)
+    aggregate_covariants['sample'] = aggregate_covariants['sample'].str.split('.trimmed').str[0]
+
+    # Get collection date and location from metadata
+    aggregate_covariants = aggregate_covariants.merge(
+        metadata[["sample", "collection_date", "location"]],
+        on="sample",
+        how="left",
+    )
+
+    aggregate_covariants["collection_date"] = pd.to_datetime(aggregate_covariants["collection_date"])
+
+    # Drop rows with missing collection date or location
+    aggregate_covariants = aggregate_covariants.dropna(subset=["collection_date", "location"])
+
+    return aggregate_covariants
 
 
 def query_clinical_data(aggregate_covariants, freyja_barcodes, START_DATE, END_DATE):
@@ -94,7 +112,6 @@ def query_clinical_data(aggregate_covariants, freyja_barcodes, START_DATE, END_D
         if all([m in barcode_muts for m in row[1]["nt_mutations"].split(" ")]): # Skip if all mutations are in freyja barcodes
             cache[str(cluster)] = None
             continue
-
 
         try:
             with HiddenPrints():
@@ -135,7 +152,9 @@ def main():
         authenticate_user.authenticate_new_user()
 
     aggregate_covariants = parse_covariants(args.covariants_dir)
-    aggregate_covariants.to_csv("agg_covariants.tsv", sep="\t", index=False)
+
+    # Add metadata to aggregate covariants
+    aggregate_covariants = add_metadata(aggregate_covariants)
 
     # Query clinical data
     cryptic_variants = query_clinical_data(

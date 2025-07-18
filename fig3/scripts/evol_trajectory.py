@@ -1,6 +1,5 @@
 import argparse
 import pandas as pd
-import numpy as np
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 
@@ -17,11 +16,11 @@ def main():
     parser = argparse.ArgumentParser(description='Plot stepwise evolution of cryptic mutation clusters.')
 
     parser.add_argument('--input', type=str, help='Path to the input file (tsv) containing cryptic variants.')
-    parser.add_argument('--output', type=str, default='descent_plots', help='Directory to save the output plots.')
+    parser.add_argument('--output', type=str, default='../descent_plots', help='Directory to save the output plots.')
     parser.add_argument('--min_muts', type=int, default=2, help='Minimum number of mutations in a cluster to consider.')
     parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
     parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
-    parser.add_argument('--min_freq', type=float, default=0.01, help='Minimum frequency of mutations in the cluster to be considered.')
+    parser.add_argument('--min_freq', type=float, default=0.001, help='Minimum frequency of mutations in the cluster to be considered.')
     parser.add_argument('--min_depth', type=int, default=10, help='Minimum depth for a mutation cluster to be considered.')
 
     args = parser.parse_args()
@@ -37,7 +36,7 @@ def main():
 
     df.drop_duplicates(subset=['cluster', 'collection_date', 'location'],keep='first',inplace=True)
 
-    df = df[df['count'] >= args.min_depth]
+    df = df[df['cluster_depth'] >= args.min_depth]
     df = df[df['frequency'] >= args.min_freq]
 
     df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3)
@@ -46,7 +45,7 @@ def main():
     # aggregate metadata for each unique cluster
     df_aggregate = df.groupby('cluster').agg(
         {
-            'count':tuple,
+            'cluster_depth':tuple,
             'location':tuple,
             'collection_date':tuple,
             'coverage_start':tuple,
@@ -54,9 +53,9 @@ def main():
             'num_clinical_detections':'mean',
             'num_muts':'min'
         }
-    ).sort_values(by='num_muts',ascending=False)
+    ).sort_values(by='num_muts', ascending=False)
 
-    df_aggregate['total_observations']= df_aggregate['count'].apply(lambda x: len(x))
+    df_aggregate['total_observations']= df_aggregate['cluster_depth'].apply(lambda x: len(x))
     df_aggregate = df_aggregate[df_aggregate['total_observations'] >= args.min_observations]
 
     df_aggregate = df_aggregate[df_aggregate['num_clinical_detections'] <= args.max_clinical_detections]
@@ -65,18 +64,21 @@ def main():
 
     # for a known mutation cluster, see what evolves from it. 
     test_clusters = [
-                ("S:S371F","S:S373P","S:S375F", "S:K356T", "S:T376A"),
-                ('S:G142D', 'S:DEL144/144'),
-                ("S:D614G", "S:P621S", "S:H655Y"),
+                ("S:S371F","S:S373P","S:S375F", "S:K356T", "S:T376A", "S:R403K"),
+                ("S:P139H", 'S:G142D', 'S:DEL144/144'),
+                ("S:K417N","S:N440K","S:V445P", "S:G446S"),
                 ("S:N679K", "S:S698P"),
-                ("S:M697V", "S:N679K", "S:P681H"),
-                ("S:H655Y","S:T678A","S:N679K","S:P681R"),
-                ('S:K356T', 'S:S371F', 'S:S373P', 'S:S375F',"S:D405N","S:R408S"),
-                ('S:N969K','S:Q954H'),
-                ("S:K356T","S:S371F","S:S373P","S:S375F","S:T376A","S:L390F","S:R403K"),
-                ("S:K417N","S:N440K","S:V445P"),
-                ("S:H655Y","S:N679K","S:P681H","S:A653T"),
-                ("S:S477N","S:T478K","S:DEL483/483","S:E484K","S:F486P","S:Q498R","S:N501Y")
+                ("S:D614G","S:H655Y"),
+                ###############################
+
+                # ("S:N764K")
+                # ("S:M697V", "S:N679K", "S:P681H"),
+                # ("S:H655Y","S:T678A","S:N679K","S:P681R"),
+                # ('S:K356T', 'S:S371F', 'S:S373P', 'S:S375F',"S:D405N","S:R408S"),
+                # ('S:N969K','S:Q954H'),
+                # ("S:K356T","S:S371F","S:S373P","S:S375F","S:T376A","S:L390F","S:R403K"),
+                # ("S:H655Y","S:N679K","S:P681H","S:A653T"),
+                # ("S:S477N","S:T478K","S:DEL483/483","S:E484K","S:F486P","S:Q498R","S:N501Y")
             ]
     
     for test_clust in test_clusters:
@@ -88,9 +90,6 @@ def main():
         # limit to 10 for simplicity
         if df_superset.shape[0] > 10:
             df_superset = df_superset.iloc[0:10]
-
-        print('test cluster:', test_clust)
-        print('df_superset:', df_superset)
 
         #force the seed cluster to be in the matrix
         if df_superset[df_aggregate['cluster'].apply(lambda x: set(test_clust)==set(x))].shape[0]==0:
@@ -133,11 +132,18 @@ def main():
 
 
         l0 = len(nx.dag_longest_path(G))-1
-        if l0<=1:
-            print(f'No detected stepwise evolution for {test_clust}')
+        if l0 <= 1:
+            #print(f'No detected stepwise evolution for {test_clust}')
             continue
-        fig,ax = plt.subplots(figsize=(3*l0,5))
-        pos=graphviz_layout(G, prog='dot',args="-Grankdir='LR' -Goverlap=false",root=0)
+
+        fig, ax = plt.subplots(figsize=(3*l0,5))
+
+        pos = graphviz_layout(
+            G,
+            prog = 'dot',
+            args="-Grankdir='LR' -Goverlap=false",
+            root=0
+        )
 
         nx.draw_networkx_nodes(
             G,
@@ -158,12 +164,27 @@ def main():
         )
 
         labels = {c:o for c,o in zip(df_superset['cluster'],list(df_superset['total_observations']))}
-        if len(labels)> len(pos):
+
+        if len(labels) > len(pos):
             labels = {key:labels[key] for key in pos.keys()}
 
         labels.pop(test_clust)
-        nx.draw_networkx_labels(G, pos = pos, labels = labels, font_color="white", font_size=6)#,verticalalignment='bottom')
-        nx.draw_networkx_edge_labels(G, pos = pos, edge_labels=edge_labels, font_color='black',font_size=5)
+
+        nx.draw_networkx_labels(
+            G,
+            pos=pos,
+            labels=labels,
+            font_color="white",
+            font_size=6
+        )
+
+        nx.draw_networkx_edge_labels(
+            G,
+            pos=pos,
+            edge_labels=edge_labels,
+            font_color="black",
+            font_size=5
+        )
 
         ymin, ymax = ax.get_ylim()
         y_length = ymax - ymin
@@ -172,11 +193,18 @@ def main():
         x_length = xmax - xmin
 
         for pk in pos.keys():
-            if G.in_degree(pk)==0:
-                ax.text(pos[pk][0]-x_length*0.03,pos[pk][1],'\n'.join(pk),fontsize=5,verticalalignment='center',horizontalalignment='right')
-        #     if G.out_degree(pk)==0:
-        #         ax.text(pos[pk][0]+x_length*0.06,pos[pk][1],'\n'.join(pk),fontsize=5,verticalalignment='center',horizontalalignment='left')
+            if G.in_degree(pk) == 0:
+                ax.text(
+                    pos[pk][0] - x_length * 0.03,
+                    pos[pk][1],
+                    '\n'.join(pk),
+                    fontsize=5,
+                    verticalalignment='center',
+                    horizontalalignment='right'
+                )
 
+
+        # add location markers
         for pk in pos.keys():
             if df_superset.loc[[pk],'location'][0] is not None:
                 locs = set(list(df_superset.loc[[pk],'location'][0]))
@@ -184,34 +212,71 @@ def main():
                 continue
             for j,l0 in enumerate(['South Bay','Point Loma','Encina']):
                 if l0 in locs:
-                    ax.scatter(pos[pk][0]+x_length*0.035,pos[pk][1]+ y_length*0.015*(1-j),marker='s',s=5,color='darkblue',linewidth=0.5)
+                    ax.scatter(
+                        pos[pk][0] + x_length * 0.035,
+                        pos[pk][1] + y_length * 0.015 * (1-j),
+                        marker='s',
+                        s=5,
+                        color='darkblue',
+                        linewidth=0.5
+                    )
                 else:
-                    ax.scatter(pos[pk][0]+x_length*0.035,pos[pk][1]+ y_length*0.015*(1-j),marker='s',s=5,edgecolors='darkblue',facecolors='none',linewidth=0.5)
+                    ax.scatter(
+                        pos[pk][0] + x_length * 0.035,
+                        pos[pk][1] + y_length * 0.015 * (1-j),
+                        marker='s',
+                        s=5,
+                        edgecolors='darkblue',
+                        facecolors='none',
+                        linewidth=0.5
+                    )
         
         # add number of clinical detections below ww detection count
         for pk in pos.keys():
-            ax.text(pos[pk][0],pos[pk][1]-y_length*0.03,str(int(df_superset.loc[[pk],'num_clinical_detections'])) if pk!=test_clust else "",
-                    fontsize=5,verticalalignment='center',horizontalalignment='center',color='red')
-            
+            ax.text(
+                pos[pk][0],
+                pos[pk][1] - y_length * 0.03,
+                str(int(df_superset.loc[[pk], 'num_clinical_detections'])) if pk != test_clust else "",
+                fontsize=5,
+                verticalalignment='center',
+                horizontalalignment='center',
+                color='red'
+            )
+
+        # Add collection date information
         for pk in pos.keys():
-            if df_superset.loc[[pk],'location'][0] is not None:
-                tp = pd.Series(df_superset.loc[[pk],'collection_date'][0],name='times')
+            if df_superset.loc[[pk], 'location'][0] is not None:
+                tp = pd.Series(df_superset.loc[[pk], 'collection_date'][0], name='times')
             else:
                 continue
-            if len(tp)==1:
-                    ax.text(pos[pk][0],pos[pk][1]+y_length*0.03,
+
+            if len(tp) == 1:
+                ax.text(
+                    pos[pk][0],
+                    pos[pk][1] + y_length * 0.03,
                     f"{tp.iloc[0].strftime('%Y/%m/%d')}",
-                    fontsize=4,verticalalignment='center',horizontalalignment='center',color='black')
+                    fontsize=4,
+                    verticalalignment='center',
+                    horizontalalignment='center',
+                    color='black'
+                )
             else:
-                ax.text(pos[pk][0],pos[pk][1]+y_length*0.03,
-                        f"{tp.min().strftime('%Y/%m/%d')}\n-{tp.max().strftime('%Y/%m/%d')}",
-                        fontsize=4,verticalalignment='center',horizontalalignment='center',color='black')
+                ax.text(
+                    pos[pk][0],
+                    pos[pk][1] + y_length * 0.03,
+                    f"{tp.min().strftime('%Y/%m/%d')}\n-{tp.max().strftime('%Y/%m/%d')}",
+                    fontsize=4,
+                    verticalalignment='center',
+                    horizontalalignment='center',
+                    color='black'
+                )
                 
         plt.gca().set_frame_on(False)
         fn0 = ','.join(test_clust).replace('/','_')
         fig.tight_layout()
         plt.savefig(f'{args.output}/ww_evo_seq{fn0}.pdf',transparent=True)
         plt.close('all')
+
 
 def parse_query_list(query_list):
     query_list = query_list.strip('[]').split(', ')

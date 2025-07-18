@@ -4,8 +4,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib
-import os
-from tqdm import tqdm
+
 from networkx.drawing.nx_agraph import graphviz_layout
 
 
@@ -17,11 +16,11 @@ def main():
     parser = argparse.ArgumentParser(description='Plot stepwise evolution of cryptic mutation clusters.')
 
     parser.add_argument('--input', type=str, help='Path to the input file (tsv) containing cryptic variants.')
-    parser.add_argument('--output', type=str, default='evoplots', help='Directory to save the output plots.')
+    parser.add_argument('--output', type=str, default='../evoplots', help='Directory to save the output plots.')
     parser.add_argument('--min_muts', type=int, default=2, help='Minimum number of mutations in a cluster to consider.')
     parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
     parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
-    parser.add_argument('--min_freq', type=float, default=0.01, help='Minimum frequency of mutations in the cluster to be considered.')
+    parser.add_argument('--min_freq', type=float, default=0.001, help='Minimum frequency of mutations in the cluster to be considered.')
     parser.add_argument('--min_depth', type=int, default=10, help='Minimum depth for a mutation cluster to be considered.')
 
     args = parser.parse_args()
@@ -37,7 +36,7 @@ def main():
 
     df.drop_duplicates(subset=['cluster', 'collection_date', 'location'],keep='first',inplace=True)
 
-    df = df[df['count'] >= args.min_depth]
+    df = df[df['cluster_depth'] >= args.min_depth]
     df = df[df['frequency'] > args.min_freq]
 
     df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3)
@@ -46,7 +45,7 @@ def main():
     # aggregate metadata for each unique cluster
     df_aggregate = df.groupby('cluster').agg(
         {
-            'count':tuple,
+            'cluster_depth':tuple,
             'location':tuple,
             'collection_date':tuple,
             'coverage_start':tuple,
@@ -56,7 +55,7 @@ def main():
         }
     ).sort_values(by='num_muts',ascending=False)
     
-    df_aggregate['total_observations'] = df_aggregate['count'].apply(lambda x: len(x))
+    df_aggregate['total_observations'] = df_aggregate['cluster_depth'].apply(lambda x: len(x))
     df_aggregate = df_aggregate[df_aggregate['total_observations'] >= args.min_observations]
 
     df_aggregate = df_aggregate[df_aggregate['num_clinical_detections'] <= args.max_clinical_detections]
@@ -73,13 +72,10 @@ def main():
     test_clusters = [item for sublist in test_clusters for item in sublist if len(item) > 0]
     test_clusters = list(set(test_clusters))
 
-    df_aggregate.to_csv('df_filtered.tsv', sep='\t')
     count = 0
 
     #generate subtrees leading up to these cryptics. 
     for test_clust in test_clusters:
-
-        print(test_clust)
 
         df_region = df_aggregate.copy()
 
@@ -121,11 +117,15 @@ def main():
         for j,c in enumerate(df_superset['cluster']):
             if parent_list[j] is not None:
                 for l in range(0,len(parent_list[j])):
-                    G.add_edge(parent_list[j][l],c,weight=1)
+                    G.add_edge(
+                        parent_list[j][l],
+                        c,
+                        weight=1
+                    )
                     edge_labels[(parent_list[j][l],c)] = ','.join(new_muts_list[j][l])        
 
         try:
-            if len(nx.dag_longest_path(G))<=2:
+            if len(nx.dag_longest_path(G)) <= 2:
                 continue
         except:
             pass
@@ -134,34 +134,49 @@ def main():
 
         pos = graphviz_layout(
             G,
-            prog='dot',
-            args="-Grankdir='LR' -Goverlap=false",
-            root=0
+            prog = 'dot',
+            args = "-Grankdir='LR' -Goverlap=false",
+            root = 0
         )
 
         nx.draw_networkx_nodes(
             G,
             pos,
-            node_color="cornflowerblue",
-            alpha=0.9,
-            margins=0.1,
-            node_size=80
+            node_color = "cornflowerblue",
+            alpha = 0.9,
+            margins = 0.1,
+            node_size = 80
         )
 
         nx.draw_networkx_edges(
             G,
             pos,
-            width=1,
-            alpha=0.8,
-            arrows=True,
-            edge_color="grey",
+            width = 1,
+            alpha = 0.8,
+            arrows = True,
+            edge_color = "grey",
         )
 
         labels = {c:o for c,o in zip(df_superset['cluster'],list(df_superset['total_observations']))}
+
         if len(labels)> len(pos):
             labels = {key:labels[key] for key in pos.keys()}
-        nx.draw_networkx_labels(G, pos = pos, labels = labels, font_color="white", font_size=6)#,verticalalignment='bottom')
-        nx.draw_networkx_edge_labels(G, pos = pos, edge_labels=edge_labels, font_color='black',font_size=5)
+        
+        nx.draw_networkx_labels(
+            G,
+            pos = pos,
+            labels = labels,
+            font_color = "white",
+            font_size = 6
+        )
+        
+        nx.draw_networkx_edge_labels(
+            G,
+            pos = pos,
+            edge_labels = edge_labels,
+            font_color = 'black',
+            font_size = 5
+        )
 
         ymin, ymax = ax.get_ylim()
         y_length = ymax - ymin
@@ -169,34 +184,84 @@ def main():
         xmin, xmax = ax.get_xlim()
         x_length = xmax - xmin
 
+        # list mutations for starting and ending nodes
         for pk in pos.keys():
             if G.in_degree(pk)==0:
-                ax.text(pos[pk][0]-x_length*0.06,pos[pk][1],'\n'.join(pk),fontsize=5,verticalalignment='center',horizontalalignment='right')
+                ax.text(
+                    pos[pk][0] - x_length * 0.06,
+                    pos[pk][1],
+                    '\n'.join(pk),
+                    fontsize = 5,
+                    verticalalignment = 'center',
+                    horizontalalignment = 'right'
+                )
             if G.out_degree(pk)==0:
-                ax.text(pos[pk][0]+x_length*0.06,pos[pk][1],'\n'.join(pk),fontsize=5,verticalalignment='center',horizontalalignment='left')
+                ax.text(
+                    pos[pk][0] + x_length * 0.06,
+                    pos[pk][1],
+                    '\n'.join(pk),
+                    fontsize = 5,
+                    verticalalignment = 'center',
+                    horizontalalignment ='left'
+                )
+
         # add number of clinical detections below ww detection count
         for pk in pos.keys():
-            ax.text(pos[pk][0],pos[pk][1]-y_length*0.03,int(df_region.loc[[pk],'num_clinical_detections']),
-                    fontsize=5,verticalalignment='center',horizontalalignment='center',color='red')
+            ax.text(
+                pos[pk][0],
+                pos[pk][1] - y_length * 0.03,
+                int(df_region.loc[[pk],'num_clinical_detections']),
+                fontsize = 5,
+                verticalalignment = 'center',
+                horizontalalignment ='center',
+                color = 'red'
+            )
         # add the sites the variant was detected at. 
         for pk in pos.keys():
             locs = set(list(df_region.loc[[pk],'location'][0]))
             for j,l0 in enumerate(['South Bay','Point Loma','Encina']):
                 if l0 in locs:
-                    ax.scatter(pos[pk][0]+x_length*0.02,pos[pk][1]+ y_length*0.02*(1-j),marker='s',s=5,color='darkblue',linewidth=0.5)
+                    ax.scatter(
+                        pos[pk][0] + x_length * 0.02,
+                        pos[pk][1] + y_length * 0.02 * (1-j),
+                        marker = 's',
+                        s = 5,
+                        color = 'darkblue',
+                        linewidth = 0.5
+                    )
                 else:
-                    ax.scatter(pos[pk][0]+x_length*0.02,pos[pk][1]+ y_length*0.02*(1-j),marker='s',s=5,edgecolors='darkblue',facecolors='none',linewidth=0.5)
+                    ax.scatter(
+                        pos[pk][0] + x_length * 0.02,
+                        pos[pk][1] + y_length * 0.02 * (1-j),
+                        marker = 's',
+                        s = 5,
+                        edgecolors = 'darkblue',
+                        facecolors = 'none',
+                        linewidth = 0.5
+                    )
         
         for pk in pos.keys():
             tp = pd.to_datetime(pd.Series(df_region.loc[[pk],'collection_date'][0],name='times'))
             if len(tp)==1:
-                    ax.text(pos[pk][0],pos[pk][1]+y_length*0.05,
-                    f"{tp.iloc[0].strftime('%Y-%m-%d')}",
-                    fontsize=4,verticalalignment='center',horizontalalignment='center',color='black')
+                    ax.text(
+                        pos[pk][0],
+                        pos[pk][1] + y_length * 0.05,
+                        f"{tp.iloc[0].strftime('%Y-%m-%d')}",
+                        fontsize = 4,
+                        verticalalignment = 'center',
+                        horizontalalignment = 'center',
+                        color = 'black'
+                    )
             else:
-                ax.text(pos[pk][0],pos[pk][1]+y_length*0.05,
-                        f"{tp.min().strftime('%Y-%m-%d')}\n-{tp.max().strftime('%Y-%m-%d')}",
-                        fontsize=4,verticalalignment='center',horizontalalignment='center',color='black')
+                ax.text(
+                    pos[pk][0],
+                    pos[pk][1] + y_length * 0.05,
+                     f"{tp.min().strftime('%Y-%m-%d')}\n-{tp.max().strftime('%Y-%m-%d')}",
+                    fontsize = 4,
+                    verticalalignment = 'center',
+                    horizontalalignment = 'center',
+                    color = 'black'
+                )
 
         plt.gca().set_frame_on(False)
         plt.savefig(f'{args.output}/ww_evo_seq{count}.pdf',transparent=True)
