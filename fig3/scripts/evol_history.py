@@ -17,7 +17,7 @@ def main():
 
     parser.add_argument('--input', type=str, help='Path to the input file (tsv) containing cryptic variants.')
     parser.add_argument('--output', type=str, default='../evoplots', help='Directory to save the output plots.')
-    parser.add_argument('--min_muts', type=int, default=2, help='Minimum number of mutations in a cluster to consider.')
+    parser.add_argument('--min_muts', type=int, default=1, help='Minimum number of mutations in a cluster to consider.')
     parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
     parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
     parser.add_argument('--min_freq', type=float, default=0.001, help='Minimum frequency of mutations in the cluster to be considered.')
@@ -264,7 +264,7 @@ def main():
                 )
 
         plt.gca().set_frame_on(False)
-        plt.savefig(f'{args.output}/ww_evo_seq{count}.pdf',transparent=True)
+        plt.savefig(f'{args.output}/ww_evo_seq{count}.svg',transparent=False)
         count += 1
         plt.close('all')
 
@@ -272,10 +272,18 @@ def main():
 def parse_query_list(query_list):
     """Parse the query list from the cryptic mutations file."""
 
+    output = []
     query_list = query_list.strip('[]').split(', ')
     query_list = [x.strip().strip("'").strip('"') for x in query_list]
+    for mut in query_list:
+        if 'DEL' in mut:
+            if mut.split('DEL')[1].split('/')[0] == mut.split('DEL')[1].split('/')[1]:
+                output.append(mut.split('DEL')[0] + 'DEL' + mut.split('DEL')[1].split('/')[0])
+            else:
+                output.append(mut)
+        else:
+            output.append(mut)        
     return query_list
-
 
 def get_aa_site(mut):
     """Extract the amino acid site from a mutation string."""

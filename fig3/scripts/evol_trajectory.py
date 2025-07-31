@@ -59,18 +59,16 @@ def main():
     df_aggregate = df_aggregate[df_aggregate['total_observations'] >= args.min_observations]
 
     df_aggregate = df_aggregate[df_aggregate['num_clinical_detections'] <= args.max_clinical_detections]
-
+    df_aggregate.to_csv('df_aggregate.tsv', sep='\t')
     df_aggregate['cluster'] = df_aggregate.index
 
     # for a known mutation cluster, see what evolves from it. 
     test_clusters = [
-                ("S:S371F","S:S373P","S:S375F", "S:K356T", "S:T376A", "S:R403K"),
-                ("S:P139H", 'S:G142D', 'S:DEL144/144'),
-                ("S:K417N","S:N440K","S:V445P", "S:G446S"),
-                ("S:N679K", "S:S698P"),
-                ("S:D614G","S:H655Y"),
+                ("S:P139H", 'S:G142D', 'S:DEL144'), # XBB.1.5 (16.03%)
+                ("S:K417N","S:N440K","S:V445P", "S:G446S"), # XBB.1.5 (28.50%)
+                ("S:A570V","S:D614G","S:H655Y"), # BA.1.1 (18.33%)
                 ###############################
-
+                #("S:S371F","S:S373P","S:S375F", "S:K356T", "S:T376A", "S:R403K"),
                 # ("S:N764K")
                 # ("S:M697V", "S:N679K", "S:P681H"),
                 # ("S:H655Y","S:T678A","S:N679K","S:P681R"),
@@ -270,18 +268,27 @@ def main():
                     horizontalalignment='center',
                     color='black'
                 )
-                
+
         plt.gca().set_frame_on(False)
         fn0 = ','.join(test_clust).replace('/','_')
         fig.tight_layout()
-        plt.savefig(f'{args.output}/ww_evo_seq{fn0}.pdf',transparent=True)
+        plt.savefig(f'{args.output}/ww_evo_seq{fn0}.svg',transparent=False)
         plt.close('all')
 
 
 def parse_query_list(query_list):
+    """Parse the query list from the cryptic mutations file."""
+
+    output = []
     query_list = query_list.strip('[]').split(', ')
     query_list = [x.strip().strip("'").strip('"') for x in query_list]
-    return query_list
+    for mut in query_list:
+        if 'DEL' in mut:
+            if mut.split('DEL')[1].split('/')[0] == mut.split('DEL')[1].split('/')[1]:
+                output.append(mut.split('DEL')[0] + 'DEL' + mut.split('DEL')[1].split('/')[0])
+        else:
+            output.append(mut)        
+    return output
 
 
 def get_aa_site(mut):
