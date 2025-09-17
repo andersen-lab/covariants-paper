@@ -10,6 +10,8 @@ EPI_ISL*
 data/raw_bam/
 data/bam/
 data/covar_out/
+data/covar_wg/
+data/RSA/
 
 # Supp. fig 1
 supp_fig1/bygul/jn.1*
