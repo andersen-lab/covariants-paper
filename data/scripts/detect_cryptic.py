@@ -14,6 +14,7 @@ from outbreak_tools import crumbs
 # Window for clinical data query
 START_DATE = "2020-01-01"
 END_DATE = "2025-12-31"
+#LOCATION = "USA" # Change to your desired location
 
 FREYJA_BARCODES = "../sars2_metadata/usher_barcodes.feather"
 
@@ -24,7 +25,7 @@ parser.add_argument(
     "--covariants_dir", help="Directory containing coVar (linked mutations) output", type=str
 )
 parser.add_argument(
-    "--output", help="Output file name", default="cryptic_variants.tsv"
+    "--output", help="Output file name", default="covariant_clinical_detections.tsv"
 )
 parser.add_argument(
     "--max_clinical_count", default=10,
@@ -46,8 +47,10 @@ class HiddenPrints:
 def parse_aa_muts(muts):
     """Prepare query for aa mutations"""
     output = []
+    if type(muts) != str:
+        return []
     for m in muts.split(' '):
-        if m == "Unknown": # Frameshift indels, most likely due to sequencing errors
+        if m == "Unknown" or m == "NA": # Frameshift indels, most likely due to sequencing errors
             return []
         if m.split(":")[1][0] == m.split(":")[1][-1]: # Omit synonymous mutations
             continue
@@ -95,6 +98,8 @@ def add_metadata(aggregate_covariants, metadata_file="../search_metadata.csv"):
     # Drop rows with missing collection date or location
     aggregate_covariants = aggregate_covariants.dropna(subset=["collection_date", "location"])
 
+    # aggregate_covariants.to_csv('../aggregate_covariants.tsv', sep='\t', index=False)
+
     return aggregate_covariants
 
 
@@ -112,14 +117,13 @@ def query_clinical_data(aggregate_covariants, freyja_barcodes, START_DATE, END_D
         if all([m in barcode_muts for m in row[1]["nt_mutations"].split(" ")]): # Skip if all mutations are in freyja barcodes
             cache[str(cluster)] = None
             continue
-
         try:
             with HiddenPrints():
                 mut_data = od.lineage_cl_prevalence(
                     ".",
                     descendants=True,
                     mutations=cluster,
-                    location="USA",
+                    #location=LOCATION,
                     datemin=START_DATE,
                     datemax=END_DATE,
                     lineage_key=lineage_key,
@@ -162,9 +166,9 @@ def main():
     )
 
     # Filter for cryptic variants
-    cryptic_variants = cryptic_variants[
-        cryptic_variants["num_clinical_detections"] <= float(args.max_clinical_count)
-    ]
+    # cryptic_variants = cryptic_variants[
+    #     cryptic_variants["num_clinical_detections"] <= float(args.max_clinical_count)
+    # ]
 
     # Save output
     cryptic_variants.to_csv(args.output, sep="\t", index=False)
