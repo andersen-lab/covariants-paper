@@ -22,14 +22,10 @@ parser = argparse.ArgumentParser(
     description="Detect cryptic mutation clusters in wastewater sequencing data"
 )
 parser.add_argument(
-    "--covariants_dir", help="Directory containing coVar (linked mutations) output", type=str
+    "--covar_dir", help="Directory containing coVar (linked mutations) output", type=str
 )
 parser.add_argument(
-    "--output", help="Output file name", default="covariant_clinical_detections.tsv"
-)
-parser.add_argument(
-    "--max_clinical_count", default=10,
-    help='Maximum number of clinical hits to consider a cluster "cryptic"',
+    "--output", help="Output file name", default="covar_clinical_detections.tsv"
 )
 
 
@@ -66,12 +62,12 @@ def parse_aa_muts(muts):
     return list(set(output))
 
 
-def parse_covariants(covariants_dir):
+def parse_covariants(covar_dir):
     """Parse covar output files, aggregate into one dataframe"""
 
     agg_covariants = pd.DataFrame()
-    for file in os.listdir(covariants_dir):
-        df = pd.read_csv(f'{covariants_dir}/{file}', sep="\t")
+    for file in os.listdir(covar_dir):
+        df = pd.read_csv(f'{covar_dir}/{file}', sep="\t")
 
         df["query"] = df["aa_mutations"].apply(parse_aa_muts)
         df = df[df["query"].apply(len) > 0]
@@ -155,7 +151,7 @@ def main():
     except:
         authenticate_user.authenticate_new_user()
 
-    aggregate_covariants = parse_covariants(args.covariants_dir)
+    aggregate_covariants = parse_covariants(args.covar_dir)
 
     # Add metadata to aggregate covariants
     aggregate_covariants = add_metadata(aggregate_covariants)
@@ -164,11 +160,6 @@ def main():
     cryptic_variants = query_clinical_data(
         aggregate_covariants, FREYJA_BARCODES, START_DATE, END_DATE
     )
-
-    # Filter for cryptic variants
-    # cryptic_variants = cryptic_variants[
-    #     cryptic_variants["num_clinical_detections"] <= float(args.max_clinical_count)
-    # ]
 
     # Save output
     cryptic_variants.to_csv(args.output, sep="\t", index=False)

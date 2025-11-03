@@ -2,14 +2,15 @@ import argparse
 import pandas as pd
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
-
-import matplotlib.pyplot as plt
 import matplotlib
-
-""" Given a cryptic mutation cluster, plot the stepwise evolution of the mutations that descent from it."""
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import seaborn as sns
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
+
+""" Given a cryptic mutation cluster, plot the stepwise evolution of the mutations that descent from it."""
 
 
 def main():
@@ -64,23 +65,25 @@ def main():
 
     # for a known mutation cluster, see what evolves from it. 
     test_clusters = [
-                ("S:P139H", 'S:G142D', 'S:DEL144'), # XBB.1.5 (16.03%)
-                ("S:K417N","S:N440K","S:V445P", "S:G446S"), # XBB.1.5 (28.50%)
-                ("S:A570V","S:D614G","S:H655Y"), # BA.1.1 (18.33%)
-                ###############################
-                #("S:S371F","S:S373P","S:S375F", "S:K356T", "S:T376A", "S:R403K"),
-                # ("S:N764K")
+                ("S:K417N","S:N440K", "S:V445P", "S:G446S", "S:N460K"),#"S:V445P", "S:G446S", "S:N460K"), # XBB.1.5 (28.50%)
+                # ("S:D614G", "S:H655Y"), # BA.1.1 (18.33%)
+                # ('S:G142D', 'S:DEL144'), # XBB.1.5 (16.03%)
+                # ("S:G142D", "S:DEL144", "S:F157S", "S:R158G"),
+                # ##############################
+                # ("S:S371F","S:S373P","S:S375F", "S:K356T", "S:T376A", "S:R403K"),
+                # ("S:N764K"),
                 # ("S:M697V", "S:N679K", "S:P681H"),
                 # ("S:H655Y","S:T678A","S:N679K","S:P681R"),
                 # ('S:K356T', 'S:S371F', 'S:S373P', 'S:S375F',"S:D405N","S:R408S"),
                 # ('S:N969K','S:Q954H'),
                 # ("S:K356T","S:S371F","S:S373P","S:S375F","S:T376A","S:L390F","S:R403K"),
                 # ("S:H655Y","S:N679K","S:P681H","S:A653T"),
-                # ("S:S477N","S:T478K","S:DEL483/483","S:E484K","S:F486P","S:Q498R","S:N501Y")
+                # ("S:S477N","S:T478K")
             ]
     
     for test_clust in test_clusters:
         df_superset = df_aggregate[df_aggregate['cluster'].apply(lambda x: set(test_clust).issubset(set(x)) or set(test_clust)==set(x))]
+        print(df_superset)
 
         df_superset['num_descendants'] = [df_superset[df_superset['cluster'].apply(lambda x: set(c0).issubset(set(x)))].shape[0] for c0 in df_superset.index] 
         df_superset = df_superset.sort_values(by='total_observations',ascending=False)
@@ -128,11 +131,62 @@ def main():
                     G.add_edge(parent_list[j][l],c,weight=1)
                     edge_labels[(parent_list[j][l],c)] = ','.join(new_muts_list[j][l])
 
+        # Create time axis plot of the accumulated mutations using seaborn swarmplot
+        plot_data = []
+        for edge in edge_labels.keys():
+            from_node, to_node = edge
+
+            mut = edge_labels[edge]
+            dates = pd.Series(df_superset.loc[[to_node], 'collection_date'].values[0])
+            locations = pd.Series(df_superset.loc[[to_node], 'location'].values[0])
+            
+            for row in [{'Mutation': mut, 'Date': date, 'Location': loc} for date, loc in zip(dates, locations)]:
+                plot_data.append(row)
+
+        plot_df = pd.DataFrame.from_records(plot_data)
+        plot_df['Date'] = pd.to_datetime(plot_df['Date'])
+
+        custom_palette = {
+            'South Bay': '#F7D842',
+            'Point Loma': '#A8C763',
+            'Encina': '#6FB8A6'
+        }
+
+        fig, ax = plt.subplots(figsize=(9, 11))
+        fig = sns.swarmplot(
+            data=plot_df,
+            x='Date',
+            y='Mutation',
+            hue='Location',  # Color by Location
+            ax=ax,
+            size=5,
+            palette=custom_palette
+        )
+        ax.legend(title='Location', bbox_to_anchor=(1.05, 1), loc='center left')
+
+        fig = fig.get_figure()
+        fig.savefig(f'{args.output}/mutation_swarmplot_{test_clust}.pdf', transparent=False, bbox_inches='tight')
+
+        ax.set_xlabel('Collection Date')
+        ax.set_ylabel('Mutation')
+        ax.set_title('Cryptic Descendant Detections Over Time')
+        plt.tight_layout()
+        locator = mdates.MonthLocator(bymonthday=1)
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+        ax.set_xlabel('Collection Date')
+        ax.set_xlim(xmin=pd.Timestamp('2023-01-01'), xmax=pd.Timestamp('2024-01-01'))
+        ax.spines[['right', 'top']].set_visible(False)
+
+
+        plt.tight_layout()
+        plt.savefig(f'{args.output}/mutation_swarmplot_{test_clust}.pdf', transparent=True, bbox_inches='tight')
+        plt.close('all')
 
         l0 = len(nx.dag_longest_path(G))-1
-        if l0 <= 1:
-            #print(f'No detected stepwise evolution for {test_clust}')
-            continue
+        # if l0 <= 1:
+        #     print(f'No detected stepwise evolution for {test_clust}')
+        #     continue
 
         fig, ax = plt.subplots(figsize=(3*l0,5))
 
@@ -272,7 +326,7 @@ def main():
         plt.gca().set_frame_on(False)
         fn0 = ','.join(test_clust).replace('/','_')
         fig.tight_layout()
-        plt.savefig(f'{args.output}/ww_evo_seq{fn0}.svg',transparent=False)
+        plt.savefig(f'{args.output}/ww_evo_seq{fn0}.pdf',transparent=False)
         plt.close('all')
 
 

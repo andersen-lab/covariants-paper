@@ -72,8 +72,9 @@ def main():
     test_clusters = [item for sublist in test_clusters for item in sublist if len(item) > 0]
     test_clusters = list(set(test_clusters))
 
-    count = 0
+    df_aggregate.to_csv('df_aggregate.tsv', sep='\t')
 
+    count = 0
     #generate subtrees leading up to these cryptics. 
     for test_clust in test_clusters:
 
@@ -88,7 +89,6 @@ def main():
 
         df_superset = df_region[df_region['cluster'].apply(lambda x: set(x).issubset(test_clust))]
         df_superset.loc[:, 'cluster'] = df_superset['cluster'].apply(lambda x: tuple(sorted(list(x), key=get_aa_site)))
-
         parent_list = []
         new_muts_list = []
         for c in df_superset['cluster']:
@@ -131,7 +131,6 @@ def main():
             pass
 
         fig, ax = plt.subplots()
-
         pos = graphviz_layout(
             G,
             prog = 'dot',
@@ -159,7 +158,7 @@ def main():
 
         labels = {c:o for c,o in zip(df_superset['cluster'],list(df_superset['total_observations']))}
 
-        if len(labels)> len(pos):
+        if len(labels) > len(pos):
             labels = {key:labels[key] for key in pos.keys()}
         
         nx.draw_networkx_labels(
@@ -264,7 +263,7 @@ def main():
                 )
 
         plt.gca().set_frame_on(False)
-        plt.savefig(f'{args.output}/ww_evo_seq{count}.svg',transparent=False)
+        plt.savefig(f'{args.output}/ww_evo_seq{count}.pdf', dpi=300)
         count += 1
         plt.close('all')
 
@@ -291,8 +290,7 @@ def get_aa_site(mut):
     if 'DEL' in mut:
         return int(mut.split('DEL')[1].split('/')[0])
     else: 
-        return int(mut.split(':')[1][1:-1]
-)
+        return int(mut.split(':')[1][1:-1])
 
 if __name__ == "__main__":
     main()
