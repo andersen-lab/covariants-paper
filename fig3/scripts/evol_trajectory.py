@@ -165,7 +165,7 @@ def main():
         ax.legend(title='Location', bbox_to_anchor=(1.05, 1), loc='center left')
 
         fig = fig.get_figure()
-        fig.savefig(f'{args.output}/mutation_swarmplot_{test_clust}.pdf', transparent=False, bbox_inches='tight')
+        fig.savefig(f'{args.output}/mutation_swarmplot_{test_clust}.pdf', transparent=True, bbox_inches='tight')
 
         ax.set_xlabel('Collection Date')
         ax.set_ylabel('Mutation')
@@ -326,7 +326,7 @@ def main():
         plt.gca().set_frame_on(False)
         fn0 = ','.join(test_clust).replace('/','_')
         fig.tight_layout()
-        plt.savefig(f'{args.output}/ww_evo_seq{fn0}.pdf',transparent=False)
+        plt.savefig(f'{args.output}/ww_evo_seq{fn0}.pdf',transparent=True, bbox_inches='tight')
         plt.close('all')
 
 

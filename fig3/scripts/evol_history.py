@@ -11,6 +11,8 @@ from networkx.drawing.nx_agraph import graphviz_layout
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
+MIN_LONGEST_PATH_LENGTH = 1
+
 
 def main():
     parser = argparse.ArgumentParser(description='Plot stepwise evolution of cryptic mutation clusters.')
@@ -20,7 +22,6 @@ def main():
     parser.add_argument('--min_muts', type=int, default=1, help='Minimum number of mutations in a cluster to consider.')
     parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
     parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
-    parser.add_argument('--min_freq', type=float, default=0.001, help='Minimum frequency of mutations in the cluster to be considered.')
     parser.add_argument('--min_depth', type=int, default=10, help='Minimum depth for a mutation cluster to be considered.')
 
     args = parser.parse_args()
@@ -37,7 +38,6 @@ def main():
     df.drop_duplicates(subset=['cluster', 'collection_date', 'location'],keep='first',inplace=True)
 
     df = df[df['cluster_depth'] >= args.min_depth]
-    df = df[df['frequency'] > args.min_freq]
 
     df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3)
     df['coverage_end'] = df['coverage_end'].apply(lambda x: (x - 21563) // 3)
@@ -125,7 +125,7 @@ def main():
                     edge_labels[(parent_list[j][l],c)] = ','.join(new_muts_list[j][l])        
 
         try:
-            if len(nx.dag_longest_path(G)) <= 2:
+            if len(nx.dag_longest_path(G)) <  MIN_LONGEST_PATH_LENGTH:
                 continue
         except:
             pass
@@ -263,7 +263,7 @@ def main():
                 )
 
         plt.gca().set_frame_on(False)
-        plt.savefig(f'{args.output}/ww_evo_seq{count}.pdf', dpi=300)
+        plt.savefig(f'{args.output}/ww_evo_seq{count}.pdf', dpi=300, transparent=True, bbox_inches='tight')
         count += 1
         plt.close('all')
 
