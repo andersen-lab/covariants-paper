@@ -179,7 +179,7 @@ BA.2.X:
     - "BA.2.12.X"
     - "BA.2.X"
     - "BN.1.X"
-  color: "#4daf4a"
+  color: "#3542f2"
 
 # BA.1.1.X:
 #   name: "BA.1.1.X"
@@ -221,7 +221,7 @@ BA.2.X:
 #     - "Recombinants"
 #   color: "#6A6C6E"
 
-# Other:
-#   name: "Other"
-#   members: null
-#   color: "#DDDDDD"
+Other:
+  name: "Other"
+  members: null
+  color: "#DDDDDD"

@@ -11,6 +11,7 @@ import numpy as np
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
+matplotlib.rcParams['font.size'] = 10
 
 
 # import dash
@@ -147,7 +148,10 @@ for site, files in zip(ww_dict.keys(),ww_dict.values()):
     df = df/100.
     # df['Other'] = 1. - df['Delta']- df['Omicron']- df['Alpha']
     # df = df.drop(columns=['Alpha','Delta','Omicron','Other'])
-    df = df.drop(columns=['Other'])
+    #df = df.drop(columns=['Other'])
+    print(df['Other'].sum())
+    # Make other be equal to 100 minus all other values in a row
+    df['Other'] = 1. - df.sum(axis=1) + df['Other']
     df = df[df.columns[df.sum(axis=0) > 0.01]]
 
     cdf = pd.read_csv(f'{files[1]}')
@@ -204,6 +208,8 @@ for site, files in zip(ww_dict.keys(),ww_dict.values()):
 
     def inGroup(plot_config0,linName):
         for key in plot_config0.keys():
+            if key == 'Other':
+                return key
             if linName in plot_config0[key]['members']:
                 return key
             else:
@@ -231,6 +237,7 @@ for site, files in zip(ww_dict.keys(),ww_dict.values()):
     # scaleddf = scaleddf[newcolOrder]
 
     colors = [plot_config[linName]['color'] for linName in scaleddf.columns]
+    print(colors)
     # quickPalette = quickPalette[::-1]
     # quickPalette = quickPalette[0:len(quickPalette)-2] + [quickPalette[-1]]+ [quickPalette[-2]]
     scaleddf = scaleddf[scaleddf.columns]
@@ -256,11 +263,13 @@ for site, files in zip(ww_dict.keys(),ww_dict.values()):
     plt.close()
 
     df = df[scaleddf.columns]
+
+    df.to_csv('../data/point_loma_prevalence_smoothed.csv')
     fig, ax = plt.subplots(figsize=(18,7))
     ax.stackplot(df.index,df.to_numpy().T,
                 labels=df.columns, colors=colors,edgecolor='k',linewidth=0.1)
     # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), prop={'size': 4})
-    ax.set_ylabel('Variant Prevalence')
+    ax.set_ylabel('Variant Prevalence', fontsize=14)
     ax.set_ylim([0, 1.])
     # plt.axvline(dt.datetime(2021, 12, 8),linestyle='--',color='black')
     # plt.axvline(dt.datetime(2021, 11, 27),linestyle='--',color='grey')
@@ -277,5 +286,5 @@ for site, files in zip(ww_dict.keys(),ww_dict.values()):
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[::-1], labels[::-1],loc='center left', bbox_to_anchor=(1.02, 0.5),ncol=1,fontsize=16)
     fig.tight_layout()
-    plt.savefig(f'plots/lineage_deconv{site}.pdf',bbox_inches='tight',)
+    plt.savefig(f'plots/lineage_deconv{site}.pdf',bbox_inches='tight', transparent=True)
     plt.close()
