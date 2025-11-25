@@ -11,7 +11,8 @@ from networkx.drawing.nx_agraph import graphviz_layout
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
-MIN_LONGEST_PATH_LENGTH = 1
+MIN_LONGEST_PATH_LENGTH = 3
+MAX_OUT_DEGREE = 1
 
 
 def main():
@@ -20,7 +21,7 @@ def main():
     parser.add_argument('--input', type=str, help='Path to the input file (tsv) containing cryptic variants.')
     parser.add_argument('--output', type=str, default='../evoplots', help='Directory to save the output plots.')
     parser.add_argument('--min_muts', type=int, default=1, help='Minimum number of mutations in a cluster to consider.')
-    parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
+    parser.add_argument('--max_clinical_detections', type=int, default=100, help='Maximum number of clinical detections to consider a cluster as cryptic.')
     parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
     parser.add_argument('--min_depth', type=int, default=10, help='Minimum depth for a mutation cluster to be considered.')
 
@@ -185,6 +186,8 @@ def main():
 
         # list mutations for starting and ending nodes
         for pk in pos.keys():
+            if G.out_degree(pk) > MAX_OUT_DEGREE:
+                continue
             if G.in_degree(pk)==0:
                 ax.text(
                     pos[pk][0] - x_length * 0.06,

@@ -9,6 +9,7 @@ import seaborn as sns
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
+matplotlib.rcParams['font.size'] = 12
 
 """ Given a cryptic mutation cluster, plot the stepwise evolution of the mutations that descent from it."""
 
@@ -21,7 +22,6 @@ def main():
     parser.add_argument('--min_muts', type=int, default=2, help='Minimum number of mutations in a cluster to consider.')
     parser.add_argument('--max_clinical_detections', type=int, default=10, help='Maximum number of clinical detections to consider a cluster as cryptic.')
     parser.add_argument('--min_observations', type=int, default=2, help='Minimum number of observations for a cluster to be included in the analysis.')
-    parser.add_argument('--min_freq', type=float, default=0.001, help='Minimum frequency of mutations in the cluster to be considered.')
     parser.add_argument('--min_depth', type=int, default=10, help='Minimum depth for a mutation cluster to be considered.')
 
     args = parser.parse_args()
@@ -38,7 +38,7 @@ def main():
     df.drop_duplicates(subset=['cluster', 'collection_date', 'location'],keep='first',inplace=True)
 
     df = df[df['cluster_depth'] >= args.min_depth]
-    df = df[df['frequency'] >= args.min_freq]
+    #df = df[df['frequency'] >= args.min_freq]
 
     df['coverage_start'] = df['coverage_start'].apply(lambda x: (x - 21563) // 3)
     df['coverage_end'] = df['coverage_end'].apply(lambda x: (x - 21563) // 3)
@@ -66,6 +66,9 @@ def main():
     # for a known mutation cluster, see what evolves from it. 
     test_clusters = [
                 ("S:K417N","S:N440K", "S:V445P", "S:G446S", "S:N460K"),#"S:V445P", "S:G446S", "S:N460K"), # XBB.1.5 (28.50%)
+                #("S:R21T", "S:S50L")
+                #("S:T19F", "S:T20V", "S:R21T", "S:S50L")
+                
                 # ("S:D614G", "S:H655Y"), # BA.1.1 (18.33%)
                 # ('S:G142D', 'S:DEL144'), # XBB.1.5 (16.03%)
                 # ("S:G142D", "S:DEL144", "S:F157S", "S:R158G"),
@@ -110,7 +113,7 @@ def main():
                 minDiff = subsets['difference'].min()
                 subsets = subsets[subsets['difference']==minDiff]
                 
-                if subsets.shape[0] ==1:
+                if subsets.shape[0] == 1:
                     parent_list.append([subsets['cluster'].iloc[0]])
                     new_muts_list.append([tuple(set(c)-set(subsets['cluster'].iloc[0]))])
                 else:
@@ -152,23 +155,18 @@ def main():
             'Encina': '#6FB8A6'
         }
 
-        fig, ax = plt.subplots(figsize=(9, 11))
+        fig, ax = plt.subplots(figsize=(10, 11))
         fig = sns.swarmplot(
             data=plot_df,
             x='Date',
             y='Mutation',
             hue='Location',  # Color by Location
             ax=ax,
-            size=5,
+            size=8,
             palette=custom_palette
         )
         ax.legend(title='Location', bbox_to_anchor=(1.05, 1), loc='center left')
 
-        fig = fig.get_figure()
-        fig.savefig(f'{args.output}/mutation_swarmplot_{test_clust}.pdf', transparent=True, bbox_inches='tight')
-
-        ax.set_xlabel('Collection Date')
-        ax.set_ylabel('Mutation')
         ax.set_title('Cryptic Descendant Detections Over Time')
         plt.tight_layout()
         locator = mdates.MonthLocator(bymonthday=1)
@@ -203,7 +201,7 @@ def main():
             node_color="cornflowerblue",
             alpha=0.9,
             margins=0.1,
-            node_size=80
+            node_size=90
         )
 
         nx.draw_networkx_edges(
@@ -227,7 +225,7 @@ def main():
             pos=pos,
             labels=labels,
             font_color="white",
-            font_size=6
+            font_size=7
         )
 
         nx.draw_networkx_edge_labels(
@@ -235,7 +233,7 @@ def main():
             pos=pos,
             edge_labels=edge_labels,
             font_color="black",
-            font_size=5
+            font_size=6
         )
 
         ymin, ymax = ax.get_ylim()
@@ -250,7 +248,7 @@ def main():
                     pos[pk][0] - x_length * 0.03,
                     pos[pk][1],
                     '\n'.join(pk),
-                    fontsize=5,
+                    fontsize=7,
                     verticalalignment='center',
                     horizontalalignment='right'
                 )
@@ -265,7 +263,7 @@ def main():
             for j,l0 in enumerate(['South Bay','Point Loma','Encina']):
                 if l0 in locs:
                     ax.scatter(
-                        pos[pk][0] + x_length * 0.035,
+                        pos[pk][0] + x_length * 0.045,
                         pos[pk][1] + y_length * 0.015 * (1-j),
                         marker='s',
                         s=5,
@@ -274,7 +272,7 @@ def main():
                     )
                 else:
                     ax.scatter(
-                        pos[pk][0] + x_length * 0.035,
+                        pos[pk][0] + x_length * 0.045,
                         pos[pk][1] + y_length * 0.015 * (1-j),
                         marker='s',
                         s=5,
@@ -289,39 +287,39 @@ def main():
                 pos[pk][0],
                 pos[pk][1] - y_length * 0.03,
                 str(int(df_superset.loc[[pk], 'num_clinical_detections'])) if pk != test_clust else "",
-                fontsize=5,
+                fontsize=6,
                 verticalalignment='center',
                 horizontalalignment='center',
                 color='red'
             )
 
         # Add collection date information
-        for pk in pos.keys():
-            if df_superset.loc[[pk], 'location'][0] is not None:
-                tp = pd.Series(df_superset.loc[[pk], 'collection_date'][0], name='times')
-            else:
-                continue
+        # for pk in pos.keys():
+        #     if df_superset.loc[[pk], 'location'][0] is not None:
+        #         tp = pd.Series(df_superset.loc[[pk], 'collection_date'][0], name='times')
+        #     else:
+        #         continue
 
-            if len(tp) == 1:
-                ax.text(
-                    pos[pk][0],
-                    pos[pk][1] + y_length * 0.03,
-                    f"{tp.iloc[0].strftime('%Y/%m/%d')}",
-                    fontsize=4,
-                    verticalalignment='center',
-                    horizontalalignment='center',
-                    color='black'
-                )
-            else:
-                ax.text(
-                    pos[pk][0],
-                    pos[pk][1] + y_length * 0.03,
-                    f"{tp.min().strftime('%Y/%m/%d')}\n-{tp.max().strftime('%Y/%m/%d')}",
-                    fontsize=4,
-                    verticalalignment='center',
-                    horizontalalignment='center',
-                    color='black'
-                )
+        #     if len(tp) == 1:
+        #         ax.text(
+        #             pos[pk][0],
+        #             pos[pk][1] + y_length * 0.03,
+        #             f"{tp.iloc[0].strftime('%Y/%m/%d')}",
+        #             fontsize=4,
+        #             verticalalignment='center',
+        #             horizontalalignment='center',
+        #             color='black'
+        #         )
+        #     else:
+        #         ax.text(
+        #             pos[pk][0],
+        #             pos[pk][1] + y_length * 0.03,
+        #             f"{tp.min().strftime('%Y/%m/%d')}\n-{tp.max().strftime('%Y/%m/%d')}",
+        #             fontsize=4,
+        #             verticalalignment='center',
+        #             horizontalalignment='center',
+        #             color='black'
+        #         )
 
         plt.gca().set_frame_on(False)
         fn0 = ','.join(test_clust).replace('/','_')
