@@ -1,5 +1,6 @@
 import argparse
 import pandas as pd
+import numpy as np
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 import matplotlib
@@ -13,6 +14,47 @@ matplotlib.rcParams['font.size'] = 12
 
 """ Given a cryptic mutation cluster, plot the stepwise evolution of the mutations that descent from it."""
 
+
+def parse_query_list(query_list):
+    """Parse the query list from the cryptic mutations file."""
+
+    output = []
+    query_list = query_list.strip('[]').split(', ')
+    query_list = [x.strip().strip("'").strip('"') for x in query_list]
+    for mut in query_list:
+        if 'DEL' in mut:
+            if mut.split('DEL')[1].split('/')[0] == mut.split('DEL')[1].split('/')[1]:
+                output.append(mut.split('DEL')[0] + 'DEL' + mut.split('DEL')[1].split('/')[0])
+        else:
+            output.append(mut)        
+    return output
+
+
+def get_aa_site(mut):
+    if 'DEL' in mut:
+        return int(mut.split('DEL')[1].split('/')[0])
+    else: 
+        return int(mut.split(':')[1][1:-1]
+)
+
+def score_cryptic(snp, error_matrix):
+    """Score a cryptic SNP by how unexpected it is under the error model.
+    Lower error rate -> higher score (more likely to be real). Score in [0, 1]."""
+
+    # Ignore deletions
+    if '-' in snp:
+        return 0
+
+    nuc_to_idx = {'A': 0, 'T': 1, 'C': 2, 'G': 3}
+    ref, alt = snp[0], snp[-1]
+    ref_idx = nuc_to_idx[ref]
+    alt_idx = nuc_to_idx[alt]
+    error_rate = error_matrix[alt_idx, ref_idx]
+
+    scalar = error_matrix.min()
+    score = (1 / error_rate) * scalar
+
+    return float(score)
 
 def main():
     parser = argparse.ArgumentParser(description='Plot stepwise evolution of cryptic mutation clusters.')
@@ -52,22 +94,38 @@ def main():
             'coverage_start':tuple,
             'coverage_end':tuple,
             'num_clinical_detections':'mean',
-            'num_muts':'min'
+            'num_muts':'min',
+            'nt_mutations':'first'
         }
     ).sort_values(by='num_muts', ascending=False)
 
+    df_aggregate['nt_mutations'] = df_aggregate['nt_mutations'].apply(lambda x: x.split(' '))
     df_aggregate['total_observations']= df_aggregate['cluster_depth'].apply(lambda x: len(x))
     df_aggregate = df_aggregate[df_aggregate['total_observations'] >= args.min_observations]
 
     df_aggregate = df_aggregate[df_aggregate['num_clinical_detections'] <= args.max_clinical_detections]
     df_aggregate.to_csv('df_aggregate.tsv', sep='\t')
     df_aggregate['cluster'] = df_aggregate.index
+    
+    # Score clusters using SNP error model
+
+    df_aggregate['score'] = 0
+    iontorrent_error = np.load('../snp-error-model/iontorrent_error_matrix.npy')
+    illumina_error = np.load('../snp-error-model/illumina_error_matrix.npy')
+    
+    print(df_aggregate)
+    scores = []
+    for idx, row in df_aggregate.iterrows():
+        error_matrix = iontorrent_error if all(date <= pd.Timestamp('2024-03-01') for date in row['collection_date']) else illumina_error
+        total_score = sum(score_cryptic(mut, error_matrix) for mut in row['nt_mutations'])
+        scores.append(float(total_score))
+    df_aggregate['score'] = scores
 
     # for a known mutation cluster, see what evolves from it. 
     test_clusters = [
                 ("S:K417N","S:N440K", "S:V445P", "S:G446S", "S:N460K"),#"S:V445P", "S:G446S", "S:N460K"), # XBB.1.5 (28.50%)
                 #("S:R21T", "S:S50L")
-                #("S:T19F", "S:T20V", "S:R21T", "S:S50L")
+                ("S:T19F", "S:T20F", "S:R21T", "S:S50L")
                 
                 # ("S:D614G", "S:H655Y"), # BA.1.1 (18.33%)
                 # ('S:G142D', 'S:DEL144'), # XBB.1.5 (16.03%)
@@ -86,11 +144,11 @@ def main():
     
     for test_clust in test_clusters:
         df_superset = df_aggregate[df_aggregate['cluster'].apply(lambda x: set(test_clust).issubset(set(x)) or set(test_clust)==set(x))]
-        print(df_superset)
 
         df_superset['num_descendants'] = [df_superset[df_superset['cluster'].apply(lambda x: set(c0).issubset(set(x)))].shape[0] for c0 in df_superset.index] 
-        df_superset = df_superset.sort_values(by='total_observations',ascending=False)
+        #df_superset = df_superset.sort_values(by='total_observations',ascending=False)
 
+        df_superset = df_superset.sort_values(by='score',ascending=False)
         # limit to 10 for simplicity
         if df_superset.shape[0] > 10:
             df_superset = df_superset.iloc[0:10]
@@ -160,7 +218,7 @@ def main():
             data=plot_df,
             x='Date',
             y='Mutation',
-            hue='Location',  # Color by Location
+            hue='Location',
             ax=ax,
             size=8,
             palette=custom_palette
@@ -326,30 +384,6 @@ def main():
         fig.tight_layout()
         plt.savefig(f'{args.output}/ww_evo_seq{fn0}.pdf',transparent=True, bbox_inches='tight')
         plt.close('all')
-
-
-def parse_query_list(query_list):
-    """Parse the query list from the cryptic mutations file."""
-
-    output = []
-    query_list = query_list.strip('[]').split(', ')
-    query_list = [x.strip().strip("'").strip('"') for x in query_list]
-    for mut in query_list:
-        if 'DEL' in mut:
-            if mut.split('DEL')[1].split('/')[0] == mut.split('DEL')[1].split('/')[1]:
-                output.append(mut.split('DEL')[0] + 'DEL' + mut.split('DEL')[1].split('/')[0])
-        else:
-            output.append(mut)        
-    return output
-
-
-def get_aa_site(mut):
-    if 'DEL' in mut:
-        return int(mut.split('DEL')[1].split('/')[0])
-    else: 
-        return int(mut.split(':')[1][1:-1]
-)
-
 
 if __name__ == "__main__":
     main()
