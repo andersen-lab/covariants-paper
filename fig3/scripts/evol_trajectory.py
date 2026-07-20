@@ -118,7 +118,7 @@ def main():
     for idx, row in df_aggregate.iterrows():
         error_matrix = iontorrent_error if all(date <= pd.Timestamp('2024-03-01') for date in row['collection_date']) else illumina_error
         total_score = sum(score_cryptic(mut, error_matrix) for mut in row['nt_mutations'])
-        scores.append(float(total_score))
+        scores.append(float(total_score) * row['total_observations'])
     df_aggregate['score'] = scores
 
     # for a known mutation cluster, see what evolves from it. 
