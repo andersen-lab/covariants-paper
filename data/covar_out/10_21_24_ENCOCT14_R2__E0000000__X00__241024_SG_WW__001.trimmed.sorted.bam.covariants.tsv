@@ -1,0 +1,4 @@
+nt_mutations	aa_mutations	cluster_depth	total_depth	frequency	coverage_start	coverage_end
+T25406C	ORF3a:M5T	223	225	0.991111	25366	25415
+C22295A	S:H245N	127	130	0.976923	22286	22323
+C22353A	S:A264D	10	10	1.0	22332	22423

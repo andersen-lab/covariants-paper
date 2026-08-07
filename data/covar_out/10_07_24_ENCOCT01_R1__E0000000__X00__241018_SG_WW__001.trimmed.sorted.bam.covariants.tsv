@@ -1,0 +1,4 @@
+nt_mutations	aa_mutations	cluster_depth	total_depth	frequency	coverage_start	coverage_end
+A24424T T24469A	S:Q954H S:N969K	59	60	0.983333	24416	24510
+C21711T A21764-TACATG	S:S50L S:DEL69/70	24	24	1.0	21703	21790
+G25297T	S:K1245N	16	67	0.238806	25291	25301

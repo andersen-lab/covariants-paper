@@ -1,0 +1,3 @@
+nt_mutations	aa_mutations	cluster_depth	total_depth	frequency	coverage_start	coverage_end
+T23599G C23604A	S:N679K S:P681H	14	93	0.150538	23581	23616
+A24424T	S:Q954H	13	60	0.216667	24412	24432

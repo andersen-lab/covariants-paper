@@ -1,0 +1,3 @@
+nt_mutations	aa_mutations	cluster_depth	total_depth	frequency	coverage_start	coverage_end
+C21711T A21764-TACATG	S:S50L S:DEL69/70	180	187	0.962567	21703	21790
+C22295A	S:H245N	88	93	0.946237	22232	22323

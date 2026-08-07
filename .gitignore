@@ -9,7 +9,6 @@ EPI_ISL*
 # Raw data
 data/raw_bam/
 data/bam/
-data/covar_out/
 var_files/
 
 data/ivar
